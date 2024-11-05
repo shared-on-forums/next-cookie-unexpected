@@ -1,36 +1,120 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+> This is a reproduciable code posted to show an issue in the code.
+> This repository can be removed at anytime.
 
-## Getting Started
 
-First, run the development server:
+## Cookies are not immedietly set when setting them in middleware, and reading them in page
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+In my real application, I am trying to see if the user is logged in or not, if the user is logged in, I will show him a LOGOUT button. If he is not logged in, I want to show him a LOGIN button.
+
+But I am getting a problem, that the cookie first time is being `undefined` when reading it, although it exists, the second time, it is there.
+
+---
+
+I made a reproducible example here:
+
+I am trying to set a cookie in `middleware.ts` file, then I am trying to read it (for demo in this simple reproducible code) in one of the pages.
+
+This is a nextjs15 project with app router. 
+
+All with server components.
+
+I am setting a cookie in middleware.ts, and I am making sure the cookie is ALWAYS set and there. Then In a page, In a nested server component, I am trying to read that cookie once again. But, I am getting `undefined`!
+
+I open my browser, open dev tools, navigated to the cookies section, then, request localhost:3000, (my application). a cookie gets in, but in the page, the cookie value isn't printed, I am getting (cookie is UNDEFINED). This only happens the first time, but if you refresh the page, subsequent requests will see the cookie value and it works.
+
+
+Look at the demo here:
+
+[![enter image description here][1]][1]
+
+
+Folder:
+```
+.
+├── bun.lockb
+├── next.config.ts
+├── next-env.d.ts
+├── package.json
+├── src
+│   ├── app
+│   │   ├── cookie-block.tsx
+│   │   ├── layout.tsx
+│   │   └── page.tsx
+│   ├── functions
+│   │   └── auth-cookie.ts
+│   └── middleware.ts
+└── tsconfig.json
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## File: src/middleware.ts
+```typescript
+import { NextResponse } from 'next/server'
+import { getAuthCookie, setAuthCookie } from './functions/auth-cookie'
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+export default async function middleware() {
+  // # ensure cookie exists
+  const authToken = await getAuthCookie()
+  if (!authToken) await setAuthCookie()
+  return NextResponse.next()
+}
 
-## Learn More
+export const config = {
+  matcher: '/((?!_next/static|favicon.ico).*)',
+}
 
-To learn more about Next.js, take a look at the following resources:
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## File: src/functions/auth-cookie.ts
+```typescript
+import { cookies } from 'next/headers'
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+const COOKIE_NAME = 'auth'
 
-## Deploy on Vercel
+export const setAuthCookie = async () => {
+  const cookieStore = await cookies()
+  const hardcodedValue = 'abcd123'
+  cookieStore.set(COOKIE_NAME, hardcodedValue, {})
+}
+export const getAuthCookie = async () => {
+  const cookieStore = await cookies()
+  const cookie = cookieStore.get(COOKIE_NAME)
+  return cookie?.value
+}
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## File: src/app/page.tsx
+```jsx
+import { CookieBlock } from './cookie-block'
+
+export default function Home() {
+  return (
+    <div className="bg-orange-400 flex justify-center h-screen w-screen items-center flex-col gap-y-16">
+      <h1 className="font-extrabold text-4xl">This page is just for demo</h1>
+      <CookieBlock />
+    </div>
+  )
+}
+
+```
+
+## File: src/app/cookie-block.tsx
+```jsx
+import { getAuthCookie } from '@/functions/auth-cookie'
+export const CookieBlock = async () => {
+  const authToken = await getAuthCookie()
+  return (
+    <div className="bg-orange-700 text-center rounded-xl p-5">
+      <h3 className="text-2xl font-bold">Your cookie is:</h3>
+      <h4>
+        <i>{authToken ?? 'IT IS UNDEFINED'}</i>
+      </h4>
+    </div>
+  )
+}
+
+```
+
+
+  [1]: https://i.sstatic.net/wsR7AnY8.gif
