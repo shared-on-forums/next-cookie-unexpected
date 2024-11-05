@@ -1,11 +1,12 @@
 import { cookies } from 'next/headers'
+import { NextResponse } from 'next/server'
 
 const COOKIE_NAME = 'auth'
 
-export const setAuthCookie = async () => {
-  const cookieStore = await cookies()
+export const setAuthCookie = (res: NextResponse) => {
   const hardcodedValue = 'abcd123'
-  cookieStore.set(COOKIE_NAME, hardcodedValue, {})
+  res.cookies.set(COOKIE_NAME, hardcodedValue, {})
+  return res
 }
 export const getAuthCookie = async () => {
   const cookieStore = await cookies()

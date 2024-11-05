@@ -3,9 +3,10 @@ import { getAuthCookie, setAuthCookie } from './functions/auth-cookie'
 
 export default async function middleware() {
   // # ensure cookie exists
+  const res = NextResponse.next()
   const authToken = await getAuthCookie()
-  if (!authToken) await setAuthCookie()
-  return NextResponse.next()
+  if (!authToken) setAuthCookie(res)
+  return res
 }
 
 export const config = {
